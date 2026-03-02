@@ -65,6 +65,8 @@ export interface Task {
   business_id: string;
   due_date?: string;
   status_reason?: string;
+  jira_issue_key?: string;
+  jira_issue_url?: string;
   created_at: string;
   updated_at: string;
   // Joined fields

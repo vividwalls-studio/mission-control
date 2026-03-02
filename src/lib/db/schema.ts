@@ -172,6 +172,19 @@ CREATE TABLE IF NOT EXISTS task_deliverables (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Jira Cloud sync mapping
+CREATE TABLE IF NOT EXISTS jira_sync (
+  id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL UNIQUE REFERENCES tasks(id) ON DELETE CASCADE,
+  jira_issue_id TEXT NOT NULL,
+  jira_issue_key TEXT NOT NULL,
+  jira_issue_url TEXT NOT NULL,
+  sync_enabled INTEGER DEFAULT 1,
+  last_synced_at TEXT,
+  last_sync_direction TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_assigned ON tasks(assigned_agent_id);
@@ -184,4 +197,7 @@ CREATE INDEX IF NOT EXISTS idx_activities_task ON task_activities(task_id, creat
 CREATE INDEX IF NOT EXISTS idx_deliverables_task ON task_deliverables(task_id);
 CREATE INDEX IF NOT EXISTS idx_openclaw_sessions_task ON openclaw_sessions(task_id);
 CREATE INDEX IF NOT EXISTS idx_planning_questions_task ON planning_questions(task_id, sort_order);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_jira_sync_task ON jira_sync(task_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_jira_sync_jira_id ON jira_sync(jira_issue_id);
+CREATE INDEX IF NOT EXISTS idx_jira_sync_key ON jira_sync(jira_issue_key);
 `;

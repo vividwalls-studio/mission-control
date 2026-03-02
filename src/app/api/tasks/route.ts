@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { queryAll, queryOne, run } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { CreateTaskSchema } from '@/lib/validation';
+import { syncTaskToJira } from '@/lib/jira/sync';
 import type { Task, CreateTaskRequest, Agent } from '@/lib/types';
 
 // GET /api/tasks - List all tasks with optional filters
@@ -21,10 +22,13 @@ export async function GET(request: NextRequest) {
         t.*,
         aa.name as assigned_agent_name,
         aa.avatar_emoji as assigned_agent_emoji,
-        ca.name as created_by_agent_name
+        ca.name as created_by_agent_name,
+        js.jira_issue_key,
+        js.jira_issue_url
       FROM tasks t
       LEFT JOIN agents aa ON t.assigned_agent_id = aa.id
       LEFT JOIN agents ca ON t.created_by_agent_id = ca.id
+      LEFT JOIN jira_sync js ON js.task_id = t.id
       WHERE 1=1
     `;
     const params: unknown[] = [];
@@ -154,7 +158,12 @@ export async function POST(request: NextRequest) {
         payload: task,
       });
     }
-    
+
+    // Fire-and-forget Jira sync (same pattern as auto-dispatch)
+    syncTaskToJira(id).catch(err => {
+      console.error('[Jira Sync] Failed to sync new task:', err);
+    });
+
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     console.error('Failed to create task:', error);

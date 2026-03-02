@@ -4,6 +4,7 @@ import { queryOne, run, queryAll } from '@/lib/db';
 import { broadcast } from '@/lib/events';
 import { getMissionControlUrl } from '@/lib/config';
 import { UpdateTaskSchema } from '@/lib/validation';
+import { syncTaskToJira } from '@/lib/jira/sync';
 import type { Task, UpdateTaskRequest, Agent, TaskDeliverable } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -18,9 +19,12 @@ export async function GET(
     const task = queryOne<Task>(
       `SELECT t.*,
         aa.name as assigned_agent_name,
-        aa.avatar_emoji as assigned_agent_emoji
+        aa.avatar_emoji as assigned_agent_emoji,
+        js.jira_issue_key,
+        js.jira_issue_url
        FROM tasks t
        LEFT JOIN agents aa ON t.assigned_agent_id = aa.id
+       LEFT JOIN jira_sync js ON js.task_id = t.id
        WHERE t.id = ?`,
       [id]
     );
@@ -197,6 +201,11 @@ export async function PATCH(
         console.error('Auto-dispatch failed:', err);
       });
     }
+
+    // Fire-and-forget Jira sync (same pattern as auto-dispatch)
+    syncTaskToJira(id).catch(err => {
+      console.error('[Jira Sync] Failed to sync updated task:', err);
+    });
 
     return NextResponse.json(task);
   } catch (error) {
